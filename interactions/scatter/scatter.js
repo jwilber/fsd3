@@ -51,6 +51,7 @@ async function drawScatter() {
   const drawDots = (dataset) => {
 
     // 5. Draw data
+    console.log(dataset)
 
     const dots = bounds.selectAll("circle")
       .data(dataset, d => d[0])
@@ -66,6 +67,21 @@ async function drawScatter() {
         .remove()
   }
   drawDots(dataset)
+
+
+const delaunay = d3.Delaunay.from( 
+  dataset,
+  d => xScale(xAccessor(d)),
+  d => yScale(yAccessor(d)),
+  )
+const voronoi = delaunay.voronoi()
+voronoi.xmax = dimensions.boundedWidth
+voronoi.ymax = dimensions.boundedHeight
+bounds.selectAll(".voronoi")
+  .data(dataset)
+  .enter().append("path")
+  .attr("class", "voronoi")
+  .attr("d", (d,i) => voronoi.renderCell(i))
 
   // 6. Draw peripherals
 
@@ -96,6 +112,41 @@ async function drawScatter() {
       .text("relative humidity")
 
   // 7. Set up interactions
+  const tooltip = d3.select('#tooltip')
+  bounds.selectAll('.voronoi')
+    .on('mouseenter', onMouseEnter)
+    .on('mouseleave', onMouseLeave)
+
+  function onMouseEnter(datum, index) {
+    const formatHumidity = d3.format('.2f')
+    const formatDewPoint = d3.format( '.2f')
+    tooltip.select('#humidity').text(formatHumidity(yAccessor(datum)))
+    tooltip.select('#dew-point').text(formatDewPoint(xAccessor(datum)))
+
+    const dateParser = d3.timeParse("%Y-%m-%d")
+    const formatDate = d3.timeFormat("%B %A %-d, %Y")
+    tooltip.select('#date').text(formatDate(dateParser(datum.date)))
+
+    const x = xScale(xAccessor(datum)) + dimensions.margin.left;
+    const y = yScale(yAccessor(datum)) + dimensions.margin.top;
+    console.log(x, y)
+    tooltip.style('transform', `translate(calc(-50% + ${x}px), calc(-100% + ${y}px)`)
+    const dayDot = bounds.append("circle")
+      .attr("class", "tooltipDot")
+      .attr("cx", xScale(xAccessor(datum)))
+      .attr("cy", yScale(yAccessor(datum)))
+      .attr("r", 7)
+      .style("fill", "maroon")
+      .style("pointer-events", "none")
+
+    tooltip.style('opacity', 1)
+
+  }
+  function onMouseLeave(datum) {
+    d3.selectAll('.tooltipDot').remove()
+    tooltip.style('opacity', 0)
+  }
+
 
 }
 drawScatter()
